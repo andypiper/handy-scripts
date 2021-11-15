@@ -13,7 +13,7 @@ function refresh_repo() {
     cd ..
 }
 
-for i in `ls -d */`;
+for i in `ls -d */ \.*/`;
 do
     refresh_repo $i;
 done
