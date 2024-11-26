@@ -1,0 +1,59 @@
+#!/bin/zsh
+
+TRACE=false
+SHOW=false
+FETCH_RANDOM=false
+
+# Parse flags
+while getopts "tsr" opt; do
+  case $opt in
+    t) TRACE=true ;;           
+    s) SHOW=true ;;           
+    r) FETCH_RANDOM=true ;;  
+    *) echo "Usage: $0 [-t] [-s] [-r]"
+       echo "  -t  Enable trace"
+       echo "  -s  Show comic in terminal"
+       echo "  -r  Fetch a random comic"
+       exit 1 ;;
+  esac
+done
+
+# Default URL
+URL="https://xkcd.com/"
+if $FETCH_RANDOM; then
+  URL="https://c.xkcd.com/random/comic"
+  $TRACE && echo "Random comic using URL: $URL"
+else
+  $TRACE && echo "Fetching latest comic using URL: $URL"
+fi
+
+# Fetch the XKCD page content (follow redirects)
+page_content=$(http --follow --body GET $URL 2>&1 || { echo "HTTP fetch failed"; exit 1; })
+$TRACE && echo "Fetched page content (${#page_content} characters)"
+
+# Extract the first image URL
+img_url=$(echo "$page_content" | rg -o "https://imgs.xkcd.com/comics/[^\"]*" | head -n 1)
+
+# Debug extracted URL
+if [ -n "$img_url" ]; then
+  $TRACE && echo "Extracted image URL: $img_url"
+else
+  echo "Failed to extract image URL."
+  $TRACE && echo "Page content for debugging:"
+  $TRACE && echo "$page_content"
+  exit 1
+fi
+
+# Download the comic image
+http GET $img_url --output comic.png || { echo "Image download failed"; exit 1; }
+
+echo "Comic saved as comic.png"
+
+# Show the image if -s flag is passed
+if $SHOW; then
+  if command -v imgcat > /dev/null 2>&1; then
+    imgcat comic.png
+  else
+    echo "imgcat not available."
+  fi
+fi
